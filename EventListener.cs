@@ -108,6 +108,7 @@ namespace PoGo.NecroBot.GUI
         {
             int intTimeForArrival = (int)(fortTargetEvent.Distance / (session.LogicSettings.WalkingSpeedInKilometerPerHour * 0.2777));
             this.gui.SetControlText($"Next stop: {fortTargetEvent.Name} - {Math.Round(fortTargetEvent.Distance)}m - {intTimeForArrival} seconds", this.gui.labelNext);
+            Logger.Write($"Next stop: {fortTargetEvent.Name} - {Math.Round(fortTargetEvent.Distance)}m - {intTimeForArrival} seconds", LogLevel.Pokestop);
         }
 
         private void HandleEvent(PokemonCaptureEvent pokemonCaptureEvent, ISession session)
@@ -222,6 +223,8 @@ namespace PoGo.NecroBot.GUI
                 : ((snipeScanEvent.Source != null) ? "(" + snipeScanEvent.Source + ") " : null) + session.Translation.GetTranslation(TranslationString.SnipeScanEx, session.Translation.GetPokemonTranslation(snipeScanEvent.PokemonId),
                     snipeScanEvent.Iv > 0 ? snipeScanEvent.Iv.ToString(CultureInfo.InvariantCulture) : session.Translation.GetTranslation(TranslationString.CommonWordUnknown),
                     $"{snipeScanEvent.Bounds.Latitude},{snipeScanEvent.Bounds.Longitude}"), LogLevel.Sniper);
+
+            this.gui.setSniper(snipeScanEvent.Bounds.Latitude.ToString(), snipeScanEvent.Bounds.Longitude.ToString());
         }
 
         private void HandleEvent(EvolveCountEvent evolveCountEvent, ISession session)
