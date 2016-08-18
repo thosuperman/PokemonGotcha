@@ -46,6 +46,10 @@
         var CDAM_marker;
         var snipeMarker;
 
+        Math.log2 = Math.log2 || function (x) {
+            return Math.log(x) / Math.LN2;
+        };
+
         function getParameterByName(name, url) {
             if (!url) url = window.location.href;
             name = name.replace(/[\[\]]/g, "\\$&");
@@ -65,11 +69,24 @@
             return new google.maps.LatLng(lat, long);
         }
 
+        function getZoomLevel(rad) {
+            try{
+                rad = parseInt(rad);
+                if (rad && typeof rad === 'number' && rad > 1) {
+                    return Math.floor(Math.min(Math.max(25 - Math.log2(rad), 10), 21));
+                } else {
+                    return 16;
+                }
+            }
+            catch (ex) {
+                return 16;
+            }
+        }
         function initialize() {
             var CDAM_Latlng = loc(getParameterByName('lat') || '52.831232142', getParameterByName('long') || '4.634342343')
             var rad = getParameterByName('radius');
             var CDAM_mapOptions = {
-                zoom: 17,
+                zoom: getZoomLevel(rad),
                 center: CDAM_Latlng
             }
             map = new google.maps.Map(document.getElementById('map-canvas'), CDAM_mapOptions);
