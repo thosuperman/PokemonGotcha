@@ -268,7 +268,28 @@ namespace PoGo.NecroBot.GUI
         {
             Logger.Write($"PokeStopList has {polEvent.Forts.Count} items", LogLevel.Debug);
         }
+
+        private void HandleEvent(HumanWalkingEvent humanWalkingEvent, ISession session)
+        {
+            Logger.Write($"Moving like a human in speed {humanWalkingEvent.CurrentWalkingSpeed.ToString("0.00")} km/h | Old Walking Speed {humanWalkingEvent.OldWalkingSpeed}", LogLevel.Debug);
+            this.gui.UIThread(() => {
+                this.gui.labelSpeed.TextLine2 = $"{humanWalkingEvent.CurrentWalkingSpeed.ToString("0.00")}km/h";
+            });
+        }
+
+        private void HandleEvent(KillSwitchEvent killSwitchEvent, ISession session)
+        {
+            Logger.Write($"KillSwitch: {killSwitchEvent.Message}. ShouldStop: {killSwitchEvent.RequireStop} ", LogLevel.Warning);
+            if (killSwitchEvent.RequireStop)
+            {
+                this.gui.UIThread(() =>
+                {
+                    this.gui.pause($"KillSwitch: {killSwitchEvent.Message}.");
+                });
+            }
+        }
         
+
         public void Listen(IEvent evt, ISession session)
         {
             dynamic eve = evt;
