@@ -33,6 +33,7 @@ namespace PoGo.NecroBot.GUI
     {
         private DragManager _dm;
         private bool mapLoaded;
+        private DateTime start;
         private Session _session;
         private ListViewColumnSorter lvwColumnSorter;
         private ListViewColumnSorter lvwCatchesColumnSorter;
@@ -46,21 +47,30 @@ namespace PoGo.NecroBot.GUI
         private bool debugUI;
         private bool debugLogs;
         private bool debugMap;
+        private bool isDebug;
         private bool snipeStarted;
         private string version;
 
-        public PokeGUI()
+        public PokeGUI(bool isDebug)
         {
-            this.mapLoaded = false;
-            this.debugUI = false;
-            this.debugLogs = false;
-            this.snipeStarted = false;
-            this.debugMap = false;
-            this.pokemonCaught = 0;
-            this.pokestopsVisited = 0;
-            InitializeComponent();
-            doComponentSettings();
-            startUp();
+            try
+            {
+                this.start = DateTime.Now;
+                this.isDebug = isDebug;
+                this.mapLoaded = false;
+                this.debugUI = false;
+                this.debugLogs = false;
+                this.snipeStarted = false;
+                this.debugMap = false;
+                this.pokemonCaught = 0;
+                this.pokestopsVisited = 0;
+                InitializeComponent();
+                doComponentSettings();
+                startUp();
+            }
+            catch (Exception ex) {
+                MessageBox.Show($"Error. {ex.Message}\nStack: {ex.StackTrace}", ex.Message, MessageBoxButtons.AbortRetryIgnore,MessageBoxIcon.Error);
+            }
         }
 
         private void doComponentSettings()
@@ -158,7 +168,7 @@ namespace PoGo.NecroBot.GUI
                 }
             });
         }
-        public void addPokestopVisited(string[] row)
+        public void addPokestopVisited(string[] row, FortUsedEvent fortUsedEvent)
         {
             this.pokestopsVisited++;
             this.updateStatusCounters();
@@ -166,6 +176,11 @@ namespace PoGo.NecroBot.GUI
             {
                 this.listPokestops.Items.Add(new ListViewItem(row));
                 this.listPokestops.Sort();
+                TimeSpan runtime = DateTime.Now - this.start;
+                double hours = runtime.Hours + ((double)runtime.Minutes / 60.0);
+                labelPokestopsPH.TextLine2 = ((double)this.pokestopsVisited / hours).ToString("0.00");
+
+                this.setFort("Checkpoint",fortUsedEvent.Id, fortUsedEvent.Longitude.ToString(), fortUsedEvent.Latitude.ToString(), fortUsedEvent.Name,"");
             });
             this.updateInventory();
         }
@@ -328,6 +343,10 @@ namespace PoGo.NecroBot.GUI
                 {
                     this.SetText($"[{now}] ({level.ToString()}) {message}", color);
                 }
+
+                if (isDebug) {
+                    Console.WriteLine($"[{now}] ({level.ToString()}) {message}");
+                }
             };
             Logger.SetLogger(new EventLogger(LogLevel.Info, writes), "");
         }
@@ -373,13 +392,17 @@ namespace PoGo.NecroBot.GUI
                 settings.UpdateSettings = new UpdateConfig();
             }
             settings.UpdateSettings.AutoUpdate = false;
-            settings.UpdateSettings.CheckForUpdates = true;
+            settings.UpdateSettings.CheckForUpdates = false;
 
             if (settings.GoogleWalkConfig == null)
             {
                 settings.GoogleWalkConfig = new GoogleWalkConfig();
             }
-
+            if (settings.KillSwitchSettings == null)
+            {
+                settings.KillSwitchSettings = new KillSwitchSettings();
+            }
+            
             var session = new Session(new ClientSettings(settings), new LogicSettings(settings));
             _session = session;
             session.Client.ApiFailure = new ApiFailureStrategy(session);
@@ -465,14 +488,16 @@ namespace PoGo.NecroBot.GUI
                 session.Telegram = new Logic.Service.TelegramService(settings.TelegramSettings.TelegramAPIKey, session);
             }
 
+            settings.checkProxy(session.Translation);
+            await machine.AsyncStart(new VersionCheckState(), session);
+
             if (session.LogicSettings.UseSnipeLocationServer)
             {
                 await SnipePokemonTask.AsyncStart(session);
                 this.snipeStarted = true;
             }
 
-            settings.checkProxy(session.Translation);
-            await machine.AsyncStart(new VersionCheckState(), session);
+            
         }
         private void onceLoaded()
         {
@@ -512,7 +537,6 @@ namespace PoGo.NecroBot.GUI
         {
             try
             {
-
                 var mapObjects = await this._session.Client.Map.GetMapObjects();
 
                 // Wasn't sure how to make this pretty. Edit as needed.
@@ -597,6 +621,7 @@ namespace PoGo.NecroBot.GUI
             public bool addedToList;
         }
         private Dictionary<ulong, pokemonItem> allPokemonItems;
+        private Dictionary<ListViewItem, bool> deletedPokemon;
         private async Task getPokemons()
         {
             try
@@ -604,6 +629,7 @@ namespace PoGo.NecroBot.GUI
                 if (allPokemonItems == null) {
                     allPokemonItems = new Dictionary<ulong, pokemonItem>();
                 }
+                deletedPokemon = allPokemonItems.ToDictionary(pi => pi.Value.lvi, pi => true);
                 var items = await this._session.Inventory.GetPokemons();
                 var myPokemonSettings = await this._session.Inventory.GetPokemonSettings();
                 var pokemonSettings = myPokemonSettings.ToList();
@@ -679,6 +705,7 @@ namespace PoGo.NecroBot.GUI
                             for (int i = 0; i < pi.lvi.SubItems.Count; i++) {
                                 pi.lvi.SubItems[i] = thisOne.SubItems[i];
                             }
+                            deletedPokemon.Remove(pi.lvi);
                         }
                         else
                         {
@@ -701,12 +728,15 @@ namespace PoGo.NecroBot.GUI
                     labelPokemonCount.TextLine2 = lvis.Count().ToString();
                 });
                 this.SetList(listPokemon, lvis, true);
-
-                pokemonsIHave[144] = true;
-                pokemonsIHave[145] = true;
-                pokemonsIHave[146] = true;
+                
                 this.UIThread(() =>
                 {
+                    //== Remove removed
+                    foreach (var removed in deletedPokemon) {
+                        removed.Key.Remove();
+                    }
+
+                    //== Pokestats / pokemonIHave
                     this.listPokemonStats.Clear();
                     for (int i = 1; i < 149; i++)
                     {

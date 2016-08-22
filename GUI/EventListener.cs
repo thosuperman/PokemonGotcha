@@ -24,6 +24,11 @@ namespace PoGo.NecroBot.GUI
                 evt.Profile.PlayerData.Username ?? ""));
         }
 
+        public void HandleEvent(UnaccurateLocation evt, ISession session)
+        {
+            Logger.Write($"[UnaccurateLocation] {evt.Latitude} / {evt.Longitude}", LogLevel.Debug);
+        }
+
         public void HandleEvent(ErrorEvent evt, ISession session)
         {
             Logger.Write(evt.ToString(), LogLevel.Error);
@@ -94,7 +99,7 @@ namespace PoGo.NecroBot.GUI
             : fortUsedEvent.Items;
             Logger.Write(String.Format("Name: {0} \n - XP:    {1} \n - Gems:  {2} \n - Items: {3}", fortUsedEvent.Name, fortUsedEvent.Exp, fortUsedEvent.Gems, itemString), LogLevel.Pokestop);
 
-            this.gui.addPokestopVisited(new string[] { DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),fortUsedEvent.Name, fortUsedEvent.Exp.ToString(), fortUsedEvent.Gems.ToString(), itemString, fortUsedEvent.Latitude.ToString("0.00000"), fortUsedEvent.Longitude.ToString("0.00000") });
+            this.gui.addPokestopVisited(new string[] { DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),fortUsedEvent.Name, fortUsedEvent.Exp.ToString(), fortUsedEvent.Gems.ToString(), itemString, fortUsedEvent.Latitude.ToString("0.00000"), fortUsedEvent.Longitude.ToString("0.00000") }, fortUsedEvent);
         }
 
         public void HandleEvent(FortFailedEvent evt, ISession session)
